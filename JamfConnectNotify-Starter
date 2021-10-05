@@ -1,0 +1,96 @@
+#!/bin/zsh
+## postinstall
+
+pathToScript=$0
+pathToPackage=$1
+targetLocation=$2
+targetVolume=$3
+
+# Base script is from https://github.com/arekdreyer/DEPNotify-Starter and altered to work with Jamf Connect Notify
+# This script is designed to be run as a postinstall script from a Jamf composer package which which, in my org delivers logo images etc too.  
+
+# You can change this if you have a better location to use.
+# I haven't tested this with any path that has a space in the name.
+TempUtilitiesPath=/usr/local/myorg
+#
+# You can change any of these:
+InstallerBaseString=com.myorg.DEPNotify-prestarter
+InstallerScriptName=${InstallerBaseString}-installer.zsh
+InstallerScriptPath=${TempUtilitiesPath}/${InstallerScriptName}
+UnInstallerScriptName=${InstallerBaseString}-uninstaller.zsh
+UnInstallerScriptPath=${TempUtilitiesPath}/${UnInstallerScriptName}
+
+# Best to use /Library/LaunchDaemons for the LaunchDaemon
+#LaunchDaemonName=${InstallerBaseString}.plist
+#LaunchDaemonPath="/Library/LaunchDaemons"/${LaunchDaemonName}
+
+DEPNOTIFYSTARTER_TRIGGER=deploy-mac-staff
+
+tempUtilitiesPath="/usr/local/myorg"
+
+
+# The following will create a script that triggers the DEPNotify script to start. Be sure the contents are between the two "ENDOFINSTALLERSCRIPT" lines.
+# NOTE: Make sure to leave a full return at the end of the Script content before the last "ENDOFINSTALLERSCRIPT" line.
+echo "Creating ${InstallerScriptPath}."
+(
+cat <<ENDOFINSTALLERSCRIPT
+#!/bin/zsh
+until [ -f /var/log/jamf.log ]
+do
+	echo "Waiting for jamf log to appear"
+	sleep 1
+done
+until ( /usr/bin/grep -q enrollmentComplete /var/log/jamf.log )
+do
+	echo "Waiting for jamf enrollment to be complete."
+	sleep 1
+done
+/usr/local/jamf/bin/jamf policy -event ${DEPNOTIFYSTARTER_TRIGGER}
+exit 0
+ENDOFINSTALLERSCRIPT
+) > "${InstallerScriptPath}"
+
+echo "Setting permissions for ${InstallerScriptPath}."
+chmod 755 "${InstallerScriptPath}"
+chown root:wheel "${InstallerScriptPath}"
+
+#-----------
+
+# The following will create the script file to uninstall the LaunchDaemon and installer script.
+# You can create a Jamf Pro policy with the following characteristics:
+# General settings:
+# --Name: Cleanup DEPNotify Installers
+# --Trigger: Custom Trigger: cleanup-depnotify-preinstaller
+# --Scope: All Computers
+# --Frequency: Once per Computer
+# Files and Processes settings:
+# --Execute Command: Whatever your $UnInstallerScriptPath is set to.
+#
+# In your DEPNotify.sh script, include the policy near the end of your POLICY_ARRAY.
+#
+# Paste your script's contents between the two "ENDOFUNINSTALLERSCRIPT" lines.
+# NOTE: Make sure to leave a full return at the end of the Script content before the last "ENDOFUNINSTALLERSCRIPT" line.
+echo "Creating ${UnInstallerScriptPath}."
+(
+cat <<ENDOFUNINSTALLERSCRIPT
+#!/bin/zsh
+# This is meant to be called by a Jamf Pro policy via trigger
+# Near the end of your POLICY_ARRAY in your DEPNotify.sh script
+#rm ${TempUtilitiesPath}/${DEPNotifyInstallerName}
+rm ${InstallerScriptPath}
+#Note that if you unload the LaunchDaemon this will immediately kill the depNotify.sh script
+#Just remove the underlying plist file, and the LaunchDaemon will not run after next reboot/login.
+#rm ${LaunchDaemonPath}
+rm ${UnInstallerScriptPath}
+#rmdir ${TempUtilitiesPath}
+exit 0
+exit 1
+ENDOFUNINSTALLERSCRIPT
+) > "${UnInstallerScriptPath}"
+
+echo "Setting permissions for ${UnInstallerScriptPath}."
+chmod 644 "${UnInstallerScriptPath}"
+chown root:wheel "${UnInstallerScriptPath}"
+
+exit 0		## Success
+exit 1		## Failure
