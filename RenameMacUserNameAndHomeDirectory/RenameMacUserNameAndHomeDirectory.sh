@@ -59,10 +59,10 @@ if [[ "${domainBoundCheck}" ]]; then
 fi
 
 ## Variables Passed from Jamf Pro
-oldUser=$1
-newUser=$2
-oldUserAccountName=$3
-newUserAccountName=$4
+oldUser=$4
+newUser=$5
+oldUserAccountName=$6
+newUserAccountName=$7
 # Extract User Account assigned in Jamf
 
 # Ensures that parameters are entered
