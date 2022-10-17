@@ -23,7 +23,7 @@
 ###############################################################################
 
 # Change to working directory
-cd /usr/local/hillbrook
+cd /usr/local/tmp
 
 # Logging file created in same directory as this script
 d=$(date +%Y-%m-%d--%I:%M:%S)
@@ -44,7 +44,7 @@ if [[ "${UID}" != 0 ]]; then
 fi
 
 # Ensure Terminal has been granted Full Disk Access
-# sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db 'SELECT * from access'
+sqlite3 /Library/Application\ Support/com.apple.TCC/TCC.db 'SELECT * from access'
 # accessStatus=(${access} | grep "unable")
 if [[ $? -ne 0 ]]; then
 	echo "${log} Error: Terminal does not appear to have the correct access!" 2>&1 | tee -a USER_RENAME.log
@@ -59,11 +59,11 @@ if [[ "${domainBoundCheck}" ]]; then
 fi
 
 ## Variables Passed from Jamf Pro
-oldUser=$4
-newUser=$5
-oldUserAccountName=$6
-newUserAccountName=$7
-# Extract User Account assigned in Jamf
+oldUser=$1
+newUser=$2
+oldUserAccountName=$3
+newUserAccountName=$4
+
 
 # Ensures that parameters are entered
 if [[ ${#} -ne 4 ]]; then
